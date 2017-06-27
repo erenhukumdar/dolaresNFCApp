@@ -1,0 +1,242 @@
+#!/usr/bin/env python
+
+import sys
+
+import datetime
+import time
+import threading
+import json
+import qi
+import os
+
+import requests
+from requests.auth import HTTPBasicAuth
+
+
+class NFCAuth(object):
+    subscriber_list = []
+    loaded_topic = ""
+    counter=0
+    def __init__(self, application):
+        # Getting a session that will be reused everywhere
+        self.application = application
+        self.session = application.session
+        self.service_name = self.__class__.__name__
+
+        # Getting a logger. Logs will be in /var/log/naoqi/servicemanager/{application id}.{service name}
+        self.logger = qi.Logger(self.service_name)
+
+        # Do some initializations before the service is registered to NAOqi
+        self.logger.info("Initializing...")
+        # @TODO: insert init functions here
+
+        self.preferences = self.session.service("ALPreferenceManager")
+        self.preferences.update()
+        self.connect_to_preferences()
+        self.create_signals()
+        self.logger.info("Initialized!")
+
+        # self.nfc_start('test')
+
+
+    @qi.nobind
+    def start_app(self):
+        # do something when the service starts
+        print "Starting app..."
+        # @TODO: insert whatever the app should do to start
+
+        # self.show_screen()
+        # ToDo: reactivate cleanup code
+        self.start_dialog()
+        self.logger.info("Started!")
+
+    @qi.nobind
+    def stop_app(self):
+        # To be used if internal methods need to stop the service from inside.
+        # external NAOqi scripts should use ALServiceManager.stopService if they need to stop it.
+        self.logger.info("Stopping service...")
+        self.application.stop()
+        self.logger.info("Stopped!")
+
+    @qi.nobind
+    def cleanup(self):
+        # called when your module is stopped
+        self.logger.info("Cleaning...")
+        # @TODO: insert cleaning functions here
+        self.disconnect_signals()
+        self.stop_dialog()
+        # self.hide_screen()
+        self.logger.info("Cleaned!")
+        try:
+            self.audio.stopMicrophonesRecording()
+        except Exception, e:
+            self.logger.info("microphone already closed")
+
+    @qi.nobind
+    def connect_to_preferences(self):
+        # connects to cloud preferences library and gets the initial prefs
+        try:
+
+            self.url_clear = self.preferences.getValue('nfc', "url_clear")
+            self.url_get = self.preferences.getValue('nfc', "url_get")
+            self.user_name = self.preferences.getValue('nfc', "user_name")
+            self.password = self.preferences.getValue('nfc', "password")
+            self.interval = int(self.preferences.getValue('nfc', "interval"))
+            self.duration = int(self.preferences.getValue('nfc', "duration"))
+
+        except Exception, e:
+            self.logger.info("failed to get preferences".format(e))
+        self.logger.info("Successfully connected to preferences system")
+
+    @qi.nobind
+    def create_signals(self):
+        self.logger.info("Creating ColorChosen event...")
+        # When you can, prefer qi.Signals instead of ALMemory events
+        memory = self.session.service("ALMemory")
+
+        event_name = "NFC/Start"
+        memory.declareEvent(event_name)
+        event_subscriber = memory.subscriber(event_name)
+        event_connection = event_subscriber.signal.connect(self.nfc_start)
+
+        self.subscriber_list.append([event_subscriber, event_connection])
+
+        self.logger.info("Event created!")
+
+    @qi.nobind
+    def disconnect_signals(self):
+        self.logger.info("Unsubscribing to all events...")
+        for sub, i in self.subscriber_list:
+            try:
+                sub.signal.disconnect(i)
+            except Exception, e:
+                self.logger.info("Error unsubscribing: {}".format(e))
+        self.logger.info("Unsubscribe done!")
+
+    @qi.nobind
+    def start_dialog(self):
+        self.logger.info("Loading dialog")
+        dialog = self.session.service("ALDialog")
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        topic_path = os.path.realpath(os.path.join(dir_path, "nfc", "nfc_enu.top"))
+        self.logger.info("File is: {}".format(topic_path))
+        try:
+            self.loaded_topic = dialog.loadTopic(topic_path)
+            dialog.activateTopic(self.loaded_topic)
+            dialog.subscribe(self.service_name)
+            self.logger.info("Dialog loaded!")
+            # dialog.gotoTag("cmStart", "CM")
+            self.logger.info('tag has been located')
+        except Exception, e:
+            self.logger.info("Error while loading dialog: {}".format(e))
+
+    @qi.nobind
+    def stop_dialog(self):
+        self.logger.info("Unloading dialog")
+        try:
+            dialog = self.session.service("ALDialog")
+            dialog.unsubscribe(self.service_name)
+            dialog.deactivateTopic(self.loaded_topic)
+            dialog.unloadTopic(self.loaded_topic)
+            self.logger.info("Dialog unloaded!")
+        except Exception, e:
+            self.logger.info("Error while unloading dialog: {}".format(e))
+
+    @qi.nobind
+    def show_screen(self):
+        folder = os.path.basename(os.path.dirname(os.path.realpath(__file__)))
+        self.logger.info("Loading tablet page for app: {}".format(folder))
+        try:
+            self.ts = self.session.service("ALTabletService")
+            self.ts.loadApplication(folder)
+            self.ts.showWebview()
+            self.logger.info("Tablet loaded!")
+        except Exception, e:
+            self.logger.info("Error while loading tablet: {}".format(e))
+
+    @qi.nobind
+    def hide_screen(self):
+        self.logger.info("Unloading tablet...")
+        try:
+            tablet = self.session.service("ALTabletService")
+            tablet.hideWebview()
+            self.logger.info("Tablet unloaded!")
+        except Exception, e:
+            self.logger.info("Error while unloading tablet: {}".format(e))
+
+    @qi.bind(methodName="test", returnType=qi.Void)
+    def clear_all_tag_records(self):
+        try:
+            self.logger.info('clear works')
+            response = requests.get(self.url_clear, auth=HTTPBasicAuth(self.user_name, self.password))
+            return True
+        except Exception, e:
+            self.logger.info('Error while requesting result: {}'.format(e))
+            return False
+
+    @qi.nobind
+    def get_customer_info(self):
+        try:
+            response = requests.get(self.url_get, auth=HTTPBasicAuth(self.user_name, self.password))
+            self.logger.info(response.text)
+            data = response.json()
+        except Exception, e:
+            self.logger.info('Error while requesting result: {}'.format(e))
+            data = json.dumps({"error": "cannot find"});
+        return data
+
+    @qi.nobind
+    def nfc_start(self, value):
+        self.logger.info("nfc process started")
+        if self.clear_all_tag_records():
+            self.logger.info("phase 2")
+            self.counter = 0
+            response = self.nfc_check()
+            print('response arrived'+response)
+            if response is not None:
+                if 'error' in response:
+                        memory = self.session.service('ALMemory')
+                        memory.raiseEvent("NFC/TimeError", 1)
+                else:
+                        memory = self.session.service('ALMemory')
+                        memory.raiseEvent("NFC/Reply", response[0]['name'])
+            else:
+                memory = self.session.service('ALMemory')
+                memory.raiseEvent("NFC/Nothing", 1)
+
+        else:
+            memory = self.session.service('ALMemory')
+            memory.createEvent("NFC/ClearError", 1)
+
+    @qi.nobind
+    def nfc_check(self):
+        self.counter += 1
+        print ('number of attempt='+str(self.counter))
+        response = self.get_customer_info()
+        if self.counter <= int(self.duration / self.interval) and ('error' in response):
+            time.sleep(1)
+            self.nfc_check()
+        elif self.counter > int(self.duration / self.interval):
+            return json.dumps({"error": "cannot find"});
+        else:
+            if response is None:
+                time.sleep(1)
+                print('time sleep')
+                self.nfc_check()
+            else:
+                memory = self.session.service('ALMemory')
+                memory.raiseEvent("NFC/Reply", response[0]['name'])
+                return response
+
+
+if __name__ == "__main__":
+    # with this you can run the script for tests on remote robots
+    # run : python main.py --qi-url 123.123.123.123
+    app = qi.Application(sys.argv)
+    app.start()
+    service_instance = NFCAuth(app)
+    service_id = app.session.registerService(service_instance.service_name, service_instance)
+    service_instance.start_app()
+    app.run()
+    service_instance.cleanup()
+    app.session.unregisterService(service_id)

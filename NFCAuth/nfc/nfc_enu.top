@@ -1,0 +1,15 @@
+topic: ~nfc()
+language: enu
+
+concept:(start) start
+concept:(startNFC) OK! Please touch your card my NFC reader friend! Don't forget you will have only 10 seconds
+concept:(timeError) Time is up! 
+concept:(clearError) Upps something happened
+concept:(nothing) I couldn't find your card in the system
+
+u:(~start) ~startNFC $NFC/Start=1
+u:(e:NFC/Reply) $NFC/Reply
+u:(e:NFC/ClearError) ~clearError
+u:(e:NFC/TimeError) ~timeError
+u:(e:NFC/Nothing) ~nothing
+u:(e:BarcodeReader/BarcodeDetected) barcode detected!

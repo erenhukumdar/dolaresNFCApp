@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<package uuid="nfcauth-c9f71b" version="0.0.0">
+ <names>
+  <name lang="en_US">NFCAuth</name>
+ </names>
+ <supportedLanguages>
+  <language>en_US</language>
+ </supportedLanguages>
+ <descriptionLanguages>
+  <language>en_US</language>
+ </descriptionLanguages>
+ <contents>
+  <behaviorContent path="behavior_1">
+   <userRequestable/>
+   <nature>interactive</nature>
+   <names>
+    <name lang="en_US">nfc_validator</name>
+   </names>
+   <permissions/>
+  </behaviorContent>
+  <dialogContent topicName="nfc" typeVersion="1.0">
+   <topic language="en_US" path="nfc/nfc_enu.top"/>
+  </dialogContent>
+ </contents>
+ <services>
+  <service name="NFCAuth" autorun="false" execStart="main.py"/>
+ </services>
+ <executableFiles>
+  <file path="main.py"/>
+ </executableFiles>
+</package>
