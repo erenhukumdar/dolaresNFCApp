@@ -18,12 +18,12 @@
    </names>
    <permissions/>
   </behaviorContent>
-  <dialogContent topicName="nfc" typeVersion="1.0">
+  <dialogContent typeVersion="1.0" topicName="nfc">
    <topic language="en_US" path="nfc/nfc_enu.top"/>
   </dialogContent>
  </contents>
  <services>
-  <service name="NFCAuth" autorun="false" execStart="main.py"/>
+  <service execStart="main.py" autorun="false" name="NFCAuth"/>
  </services>
  <executableFiles>
   <file path="main.py"/>

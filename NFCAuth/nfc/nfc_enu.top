@@ -3,13 +3,36 @@ language: enu
 
 concept:(start) start
 concept:(startNFC) OK! Please touch your card my NFC reader friend! Don't forget you will have only 10 seconds
-concept:(timeError) Time is up! 
-concept:(clearError) Upps something happened
-concept:(nothing) I couldn't find your card in the system
+concept:(timeError) I am sorry! Time is up! Would you like to try again?
+concept:(clearError) Upps something happened. I feel a little confused. You can try with another method!
+concept:(nothing) I couldn't identify your card in the system. You can try with another method.
+concept:(found) Great! Now we can continue!
+concept:(yes) yes
+concept:(no) no
+concept:(choiceYes) Great! I believe this time it will work!
+concept:(choiceNo) OK. Lets continue.
+concept:(executionError) ["I am sorry, I couldn't do your request, I feel a little sick. I should rest for a while."]
+concept:(exitApp) "OK! Lets see authentication menu again."
 
-u:(~start) ~startNFC $NFC/Start=1
-u:(e:NFC/Reply) $NFC/Reply
-u:(e:NFC/ClearError) ~clearError
-u:(e:NFC/TimeError) ~timeError
-u:(e:NFC/Nothing) ~nothing
-u:(e:BarcodeReader/BarcodeDetected) barcode detected!
+u:(e:NFC/Found) ^gotoReactivate(found)
+u:(e:NFC/ClearError) ^gotoReactivate(clearError)
+u:(e:NFC/TimeError) ^gotoReactivate(timeError)
+u:(e:NFC/Nothing) ^gotoReactivate(nothingFound)
+u:(e:NFC/ExecutionError) ^gotoReactivate(execError)
+u:(e:NFC/ExitApp) ^gotoReactivate(exitApp)
+
+proposal:%start ~startNFC $NFC/Start=1
+
+proposal:%found ~found $NFC/Redirect=1
+
+proposal:%timeError ~timeError
+    u1:(~yes) ~choiceYes ~startNFC $NFC/Start=1
+    u1:(~no)  ~choiceNo $NFC/Redirect=1
+
+proposal:%clearError ~clearError $NFC/Redirect=1
+
+proposal:%nothingFound ~nothing $NFC/Redirect=1
+
+proposal:%execError ~executionError $NFC/Rest=1
+
+proposal:%exitApp ~exitApp 
