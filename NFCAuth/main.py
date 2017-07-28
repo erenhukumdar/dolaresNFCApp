@@ -278,11 +278,11 @@ class NFCAuth(object):
 
     @qi.nobind
     def nfc_redirect(self, value):
-        self.logger.info('redirect is working')
+        self.logger.info('redirect is working value='+str(value))
         memory = self.session.service('ALMemory')
         autonomous_life = self.session.service('ALAutonomousLife')
         try:
-            if value == 1:
+            if value == "1":
                 redirect_app = str(memory.getData('Global/RedirectingApp'))
                 self.logger.info("Redirection is working for="+redirect_app)
                 autonomous_life.switchFocus(redirect_app)

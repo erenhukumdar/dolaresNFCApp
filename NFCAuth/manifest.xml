@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<package uuid="nfcauth-c9f71b" version="0.0.0">
+<package version="0.0.0" uuid="nfcauth-c9f71b">
  <names>
   <name lang="en_US">NFCAuth</name>
  </names>
@@ -18,12 +18,12 @@
    </names>
    <permissions/>
   </behaviorContent>
-  <dialogContent typeVersion="1.0" topicName="nfc">
+  <dialogContent topicName="nfc" typeVersion="1.0">
    <topic language="en_US" path="nfc/nfc_enu.top"/>
   </dialogContent>
  </contents>
  <services>
-  <service execStart="main.py" autorun="false" name="NFCAuth"/>
+  <service name="NFCAuth" autorun="false" execStart="main.py"/>
  </services>
  <executableFiles>
   <file path="main.py"/>
